@@ -227,7 +227,50 @@ pub(crate) async fn download_resources(
                     let mut last_stream_error = String::new();
                     let mut stream_completed = false;
 
+                    // 斑马 4K MPD 使用 DASH On-Demand：视频和音频分别是支持 Range 的
+                    // 完整 MP4。优先按固定字节块并发拉取，随后在本地解密、封装。其他
+                    // MPD 结构或不支持 Range 的 CDN 自动回退到 FFmpeg 原生 DASH 流程。
+                    if item.extension.eq_ignore_ascii_case("mpd") && item.kind == "video" {
+                        emit("downloading", 0, None, None);
+                        match try_download_dash_parallel(
+                            &client,
+                            &item.url,
+                            &partial,
+                            dash_key.as_deref(),
+                            &cancellation,
+                            |received, total| emit("downloading", received, Some(total), None),
+                        )
+                        .await
+                        {
+                            Ok(DashParallelOutcome::Completed) => {
+                                stream_completed = true;
+                                debug_log!("dash parallel complete id={}", item.id);
+                            }
+                            Ok(DashParallelOutcome::Cancelled) => {
+                                emit("cancelled", 0, None, None);
+                                return Ok(());
+                            }
+                            Ok(DashParallelOutcome::Unsupported(_reason)) => {
+                                debug_log!(
+                                    "dash parallel unsupported id={} reason={}, fallback=ffmpeg",
+                                    item.id,
+                                    _reason
+                                );
+                            }
+                            Err(_error) => {
+                                debug_log!(
+                                    "dash parallel failed id={} reason={}, fallback=ffmpeg",
+                                    item.id,
+                                    _error
+                                );
+                            }
+                        }
+                    }
+
                     for attempt in 1..=3 {
+                        if stream_completed {
+                            break;
+                        }
                         if cancellation.is_cancelled() {
                             let _ = fs::remove_file(&partial).await;
                             emit("cancelled", 0, None, None);
@@ -361,6 +404,12 @@ pub(crate) async fn download_resources(
                     if !stream_completed {
                         let _ = fs::remove_file(&partial).await;
                         return Err(format!("HLS/DASH 下载重试 3 次仍失败：{last_stream_error}"));
+                    }
+
+                    if item.extension.eq_ignore_ascii_case("mpd") {
+                        // 并行流程和 FFmpeg 兜底共用这个成功出口。兜底成功时也清掉
+                        // 先前保留的分片，避免同一部 4K 视频长期占用双倍空间。
+                        cleanup_dash_workspace(&partial).await;
                     }
 
                     if final_media_path.exists() { let _ = fs::remove_file(&final_media_path).await; }

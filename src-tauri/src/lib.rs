@@ -42,6 +42,7 @@ macro_rules! debug_log {
 mod api;
 mod auth;
 mod catalog;
+mod dash;
 mod download_cancel;
 mod downloads;
 mod filesystem;
@@ -53,6 +54,7 @@ mod secure_storage;
 mod state;
 
 use api::*;
+use dash::*;
 use media::*;
 use parser::*;
 use parser_catalog::*;

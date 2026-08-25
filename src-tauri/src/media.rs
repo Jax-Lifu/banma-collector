@@ -467,11 +467,11 @@ pub(crate) async fn decrypt_mp4_if_needed(
             );
             Ok(())
         }
-        Err(native_error) if endpoint_keys != native_keys => {
+        Err(_native_error) if endpoint_keys != native_keys => {
             debug_log!(
                 "cenc key strategy=native path={} status=failed reason={}, fallback=endpoint",
                 path.display(),
-                native_error
+                _native_error
             );
             decrypt_mp4_candidate(&inspection_path, &output_path, &endpoint_keys)
                 .await

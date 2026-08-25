@@ -655,12 +655,12 @@ pub(crate) fn cancel_download(
         }
     } else {
         // 同时中止仍处于“解析专辑子项”的批量任务。
-        let generation = state.download_generation.fetch_add(1, Ordering::AcqRel) + 1;
+        let _generation = state.download_generation.fetch_add(1, Ordering::AcqRel) + 1;
         state.album_load_generation.fetch_add(1, Ordering::Relaxed);
         debug_log!(
             "cancel requested scope=all active_items={} generation={}",
             cancellations.len(),
-            generation
+            _generation
         );
         for flag in cancellations.values() {
             flag.store(true, Ordering::Release);

@@ -1,6 +1,7 @@
 [package]
 name = "banma-collector"
 version = "0.1.0"
+license = "GPL-2.0-or-later"
 description = "斑马百科资源采集与归档工具"
 authors = ["Banma Collector"]
 edition = "2021"

@@ -79,19 +79,19 @@ pub(crate) fn save_product_session_and_cookies(state: &AppState, product: &str) 
 
     let mut storage = load_persisted_storage();
     if let Some(cookies) = cookies.filter(|value| !value.trim().is_empty()) {
-        if let Err(error) = secure_storage::save_cookie(product, &cookies) {
+        if let Err(_error) = secure_storage::save_cookie(product, &cookies) {
             debug_log!(
                 "secure session save failed product={} error={}",
                 product,
-                error
+                _error
             );
         }
     } else {
-        if let Err(error) = secure_storage::delete_cookie(product) {
+        if let Err(_error) = secure_storage::delete_cookie(product) {
             debug_log!(
                 "secure session delete failed product={} error={}",
                 product,
-                error
+                _error
             );
         }
     }
@@ -145,11 +145,11 @@ impl AppState {
                 }
                 if protected_cookie.is_none() {
                     if let Some(ref legacy) = persisted.legacy_cookies {
-                        if let Err(error) = secure_storage::save_cookie(product, legacy) {
+                        if let Err(_error) = secure_storage::save_cookie(product, legacy) {
                             debug_log!(
                                 "legacy session migration failed product={} error={}",
                                 product,
-                                error
+                                _error
                             );
                         }
                     }

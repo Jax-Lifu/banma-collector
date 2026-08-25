@@ -2,7 +2,7 @@
 
 斑马资源库是一款 Windows 桌面工具，用于整理当前账号有权访问的斑马课程资源。它可以浏览课程和专辑，按课程目录归类音视频，并在下载前选择清晰度与语言。
 
-当前公开版本为 `0.1.0`，Windows 用户可从 GitHub Releases 下载 NSIS 安装程序、MSI 安装包或便携式 ZIP。
+当前公开版本为 `0.1.1`，Windows 用户可从 GitHub Releases 下载 NSIS 安装程序、MSI 安装包或便携式 ZIP。
 
 版本变化请查看 [更新日志](CHANGELOG.md)。
 

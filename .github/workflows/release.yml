@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Restore bundled runtime cache
+        uses: actions/cache@v4
+        with:
+          path: .runtime-cache
+          key: windows-runtime-${{ hashFiles('scripts/prepare-runtime.ps1') }}
+
+      - name: Verify tag matches application version
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $expectedTag = "v$version"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag '$env:GITHUB_REF_NAME' does not match package version '$version'."
+          }
+
+      - name: Build Windows bundles
+        run: pnpm bundle:windows
+
+      - name: Collect and checksum release assets
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $bundleRoot = Join-Path $PWD "src-tauri/target/release/bundle"
+          $assetRoot = Join-Path $PWD "release-assets"
+          New-Item -ItemType Directory -Force -Path $assetRoot | Out-Null
+
+          $nsis = @(Get-ChildItem -LiteralPath (Join-Path $bundleRoot "nsis") -Filter "*.exe" -File)
+          $msi = @(Get-ChildItem -LiteralPath (Join-Path $bundleRoot "msi") -Filter "*.msi" -File)
+          $portable = Join-Path $bundleRoot "portable/BanmaCollector_${version}_x64-portable.zip"
+          if ($nsis.Count -ne 1 -or $msi.Count -ne 1 -or -not (Test-Path -LiteralPath $portable)) {
+            throw "One or more Windows release assets are missing."
+          }
+
+          Copy-Item -LiteralPath $nsis[0].FullName -Destination (Join-Path $assetRoot "BanmaCollector_${version}_x64-setup.exe")
+          Copy-Item -LiteralPath $msi[0].FullName -Destination (Join-Path $assetRoot "BanmaCollector_${version}_x64_zh-CN.msi")
+          Copy-Item -LiteralPath $portable -Destination $assetRoot
+
+          $checksums = Get-ChildItem -LiteralPath $assetRoot -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          $checksums | Set-Content -LiteralPath (Join-Path $assetRoot "SHA256SUMS.txt") -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $title = "斑马资源库 $version"
+          $assets = Get-ChildItem -LiteralPath release-assets -File | ForEach-Object FullName
+          gh release view $env:GITHUB_REF_NAME *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME @assets --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME @assets --verify-tag --title $title --generate-notes
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw "GitHub Release publishing failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BanmaCollector-${{ github.ref_name }}-windows
+          path: release-assets/*
+          if-no-files-found: error

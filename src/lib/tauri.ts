@@ -38,9 +38,10 @@ export async function downloadResources(
   outputDir: string,
   concurrency: number,
   product: ZebraProduct,
+  separateLanguages: boolean,
 ) {
   return invokeCommand("download_resources", {
-    request: { items, outputDir, concurrency, product },
+    request: { items, outputDir, concurrency, product, separateLanguages },
   });
 }
 export async function cancelDownload(id?: string) {
@@ -52,9 +53,10 @@ export async function revealPath(path: string) {
 export async function getResourcePreviewPath(
   item: ResourceItem,
   outputDir: string,
+  separateLanguages: boolean,
 ) {
   return invokeCommand<string | null>("resource_preview_path", {
-    request: { item, outputDir },
+    request: { item, outputDir, separateLanguages },
   });
 }
 export async function requestSms(phone: string, product: ZebraProduct) {

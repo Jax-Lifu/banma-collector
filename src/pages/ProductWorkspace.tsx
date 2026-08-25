@@ -97,6 +97,7 @@ export function ProductWorkspace({
   >([]);
   const [notice, setNotice] = useState<string>();
   const [concurrency, setConcurrency] = useState(4);
+  const [separateLanguages, setSeparateLanguages] = useState(true);
   const [selectedQualities, setSelectedQualities] = useState<string[]>([
     "1080P",
   ]);
@@ -183,7 +184,13 @@ export function ProductWorkspace({
       selected.forEach((item) =>
         store.updateProgress(item.id, { status: "queued", received: 0 }),
       );
-      await downloadResources(selected, store.outputDir, concurrency, product);
+      await downloadResources(
+        selected,
+        store.outputDir,
+        concurrency,
+        product,
+        separateLanguages,
+      );
       if (batchCancelRef.current) throw new Error("下载任务已停止");
     },
     onSuccess: () => setNotice("所选资源下载任务处理完毕"),
@@ -193,7 +200,13 @@ export function ProductWorkspace({
   const singleDownload = useMutation({
     mutationFn: async (item: ResourceItem) => {
       store.updateProgress(item.id, { status: "queued", received: 0 });
-      await downloadResources([item], store.outputDir, 1, product);
+      await downloadResources(
+        [item],
+        store.outputDir,
+        1,
+        product,
+        separateLanguages,
+      );
     },
     onError: (error) => setNotice(readError(error)),
   });
@@ -210,7 +223,13 @@ export function ProductWorkspace({
         store.updateProgress(item.id, { status: "queued", received: 0 }),
       );
       setNotice(`正在重新下载 ${failed.length} 个失败/已取消任务...`);
-      await downloadResources(failed, store.outputDir, concurrency, product);
+      await downloadResources(
+        failed,
+        store.outputDir,
+        concurrency,
+        product,
+        separateLanguages,
+      );
       if (batchCancelRef.current) throw new Error("下载任务已停止");
     },
     onSuccess: () => setNotice("重试任务已全部下载完成！"),
@@ -341,6 +360,7 @@ export function ProductWorkspace({
             store.outputDir,
             concurrency,
             product,
+            separateLanguages,
           );
         } catch (error) {
           if (batchCancelRef.current) throw new Error("下载任务已停止");
@@ -1015,6 +1035,41 @@ export function ProductWorkspace({
                   })}
                 </div>
               </div>
+              <div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-black/50">下载目录结构</span>
+                  <span className="text-[10px] text-black/35">默认按语言</span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSeparateLanguages(true)}
+                    className={cn(
+                      "rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors",
+                      separateLanguages
+                        ? "border-[#f05a38] bg-[#fff0e9] text-[#d94729]"
+                        : "border-black/10 bg-white text-black/45 hover:border-black/25",
+                    )}
+                  >
+                    按语言分目录
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSeparateLanguages(false)}
+                    className={cn(
+                      "rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors",
+                      !separateLanguages
+                        ? "border-[#f05a38] bg-[#fff0e9] text-[#d94729]"
+                        : "border-black/10 bg-white text-black/45 hover:border-black/25",
+                    )}
+                  >
+                    按课程混合
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-4 text-black/35">
+                  按语言时会在保存位置下建立“中文”和“英文”目录。
+                </p>
+              </div>
             </div>
           )}
 
@@ -1136,6 +1191,7 @@ export function ProductWorkspace({
         <ResourcePreview
           resource={previewResource}
           outputDir={store.outputDir}
+          separateLanguages={separateLanguages}
           state={store.progress[previewResource.id]}
           accent={definition.accent}
           onClose={closePreview}

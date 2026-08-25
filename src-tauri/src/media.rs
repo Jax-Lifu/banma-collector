@@ -19,6 +19,32 @@ pub(crate) fn safe_subfolder_path(name: &str) -> PathBuf {
         .fold(PathBuf::new(), |path, part| path.join(part))
 }
 
+pub(crate) fn resource_target_dir(
+    output_root: &Path,
+    item: &ResourceItem,
+    separate_languages: bool,
+) -> PathBuf {
+    let mut target = output_root.to_path_buf();
+    if separate_languages && item.kind == "video" {
+        if let Some(language) = item
+            .language
+            .as_deref()
+            .filter(|language| matches!(*language, "中文" | "英文"))
+        {
+            target = target.join(safe_folder_name(language));
+        }
+    }
+    if let Some(subfolder) = item
+        .subfolder
+        .as_deref()
+        .map(safe_subfolder_path)
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        target = target.join(subfolder);
+    }
+    target
+}
+
 pub(crate) fn safe_filename(item: &ResourceItem) -> String {
     let extension = if item.extension.eq_ignore_ascii_case("m3u8")
         || item.extension.eq_ignore_ascii_case("mpd")
@@ -625,16 +651,85 @@ pub(crate) async fn prepare_playable_video(
     }
 }
 
-pub(crate) async fn has_current_playable_marker(path: &Path) -> bool {
-    fs::read(path)
-        .await
-        .is_ok_and(|value| value == PLAYABLE_MARKER_VERSION)
+pub(crate) fn playable_marker_path(output_root: &Path, media_path: &Path) -> PathBuf {
+    let relative = media_path.strip_prefix(output_root).unwrap_or(media_path);
+    let normalized = relative.to_string_lossy().replace('\\', "/");
+    let digest = hex::encode(Sha256::digest(normalized.as_bytes()));
+    output_root
+        .join(".banma-cache")
+        .join("playable")
+        .join(format!("{digest}.playable"))
 }
 
-pub(crate) async fn write_playable_marker(path: &Path) -> Result<(), String> {
-    fs::write(path, PLAYABLE_MARKER_VERSION)
+fn legacy_playable_marker_path(media_path: &Path) -> PathBuf {
+    let extension = media_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("media");
+    media_path.with_extension(format!("{extension}.playable"))
+}
+
+pub(crate) async fn has_current_playable_marker(output_root: &Path, media_path: &Path) -> bool {
+    let marker_path = playable_marker_path(output_root, media_path);
+    if fs::read(&marker_path)
         .await
-        .map_err(|error| format!("写入视频校验标记失败：{error}"))
+        .is_ok_and(|value| value == PLAYABLE_MARKER_VERSION)
+    {
+        return true;
+    }
+    let _ = fs::remove_file(&marker_path).await;
+
+    let legacy_path = legacy_playable_marker_path(media_path);
+    if !fs::read(&legacy_path)
+        .await
+        .is_ok_and(|value| value == PLAYABLE_MARKER_VERSION)
+    {
+        let _ = fs::remove_file(&legacy_path).await;
+        return false;
+    }
+
+    if write_playable_marker(output_root, media_path).await.is_ok() {
+        let _ = fs::remove_file(&legacy_path).await;
+        return true;
+    }
+    false
+}
+
+pub(crate) async fn write_playable_marker(
+    output_root: &Path,
+    media_path: &Path,
+) -> Result<(), String> {
+    let marker_path = playable_marker_path(output_root, media_path);
+    let parent = marker_path
+        .parent()
+        .ok_or_else(|| "视频校验缓存路径无效".to_string())?;
+    fs::create_dir_all(parent)
+        .await
+        .map_err(|error| format!("创建视频校验缓存失败：{error}"))?;
+    fs::write(&marker_path, PLAYABLE_MARKER_VERSION)
+        .await
+        .map_err(|error| format!("写入视频校验缓存失败：{error}"))?;
+    let _ = fs::remove_file(legacy_playable_marker_path(media_path)).await;
+    Ok(())
+}
+
+pub(crate) async fn remove_playable_marker(output_root: &Path, media_path: &Path) {
+    let _ = fs::remove_file(playable_marker_path(output_root, media_path)).await;
+    let _ = fs::remove_file(legacy_playable_marker_path(media_path)).await;
+}
+
+pub(crate) async fn move_playable_marker(
+    output_root: &Path,
+    old_media_path: &Path,
+    new_media_path: &Path,
+) {
+    if has_current_playable_marker(output_root, old_media_path).await
+        && write_playable_marker(output_root, new_media_path)
+            .await
+            .is_ok()
+    {
+        remove_playable_marker(output_root, old_media_path).await;
+    }
 }
 
 pub(crate) async fn manifest_decryption_context(

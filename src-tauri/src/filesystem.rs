@@ -14,14 +14,7 @@ pub(crate) async fn resource_preview_path(
 ) -> Result<Option<String>, String> {
     let output = std::fs::canonicalize(PathBuf::from(request.output_dir))
         .map_err(|error| format!("无法访问下载目录：{error}"))?;
-    let target_dir = request
-        .item
-        .subfolder
-        .as_deref()
-        .map(safe_subfolder_path)
-        .filter(|path| !path.as_os_str().is_empty())
-        .map(|path| output.join(path))
-        .unwrap_or_else(|| output.clone());
+    let target_dir = resource_target_dir(&output, &request.item, request.separate_languages);
     let mut path = target_dir.join(safe_filename(&request.item));
     if request.item.extension.eq_ignore_ascii_case("m3u8")
         || request.item.extension.eq_ignore_ascii_case("mpd")
@@ -33,17 +26,25 @@ pub(crate) async fn resource_preview_path(
         });
     }
     if !path.is_file() {
-        return Ok(None);
-    }
-    if request.item.kind == "video" {
-        let extension = path
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("mp4");
-        let verified = path.with_extension(format!("{extension}.playable"));
-        if !verified.is_file() {
+        let alternate_dir =
+            resource_target_dir(&output, &request.item, !request.separate_languages);
+        let mut alternate = alternate_dir.join(safe_filename(&request.item));
+        if request.item.extension.eq_ignore_ascii_case("m3u8")
+            || request.item.extension.eq_ignore_ascii_case("mpd")
+        {
+            alternate = alternate.with_extension(if request.item.kind == "audio" {
+                "mp3"
+            } else {
+                "mp4"
+            });
+        }
+        if !alternate.is_file() {
             return Ok(None);
         }
+        path = alternate;
+    }
+    if request.item.kind == "video" && !has_current_playable_marker(&output, &path).await {
+        return Ok(None);
     }
     let path =
         std::fs::canonicalize(&path).map_err(|error| format!("无法访问预览文件：{error}"))?;

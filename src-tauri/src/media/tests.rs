@@ -23,6 +23,115 @@ fn unwraps_media_key_with_native_player_algorithm() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn playable_marker_is_migrated_to_root_cache() {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let output_root = std::env::temp_dir().join(format!(
+        "banma-playable-marker-{}-{unique}",
+        std::process::id()
+    ));
+    let media_path = output_root.join("月球/认识月球/001_认识月球_中文_4K.mp4");
+    fs::create_dir_all(media_path.parent().unwrap())
+        .await
+        .unwrap();
+    fs::write(&media_path, b"test video placeholder")
+        .await
+        .unwrap();
+
+    let legacy_marker = legacy_playable_marker_path(&media_path);
+    fs::write(&legacy_marker, PLAYABLE_MARKER_VERSION)
+        .await
+        .unwrap();
+
+    assert!(has_current_playable_marker(&output_root, &media_path).await);
+    let cached_marker = playable_marker_path(&output_root, &media_path);
+    assert!(cached_marker.starts_with(output_root.join(".banma-cache/playable")));
+    assert_eq!(
+        fs::read(&cached_marker).await.unwrap(),
+        PLAYABLE_MARKER_VERSION
+    );
+    assert!(!legacy_marker.exists());
+
+    remove_playable_marker(&output_root, &media_path).await;
+    assert!(!cached_marker.exists());
+    let _ = fs::remove_dir_all(&output_root).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn playable_marker_follows_legacy_filename_upgrade() {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let output_root = std::env::temp_dir().join(format!(
+        "banma-playable-move-{}-{unique}",
+        std::process::id()
+    ));
+    let old_path = output_root.join("认识月球_中文_4K.mp4");
+    let new_path = output_root.join("001_认识月球_中文_4K.mp4");
+
+    write_playable_marker(&output_root, &old_path)
+        .await
+        .unwrap();
+    move_playable_marker(&output_root, &old_path, &new_path).await;
+
+    assert!(!has_current_playable_marker(&output_root, &old_path).await);
+    assert!(has_current_playable_marker(&output_root, &new_path).await);
+    let _ = fs::remove_dir_all(&output_root).await;
+}
+
+#[test]
+fn video_target_directory_can_separate_languages() {
+    let item = ResourceItem {
+        id: "moon-cn".into(),
+        title: "认识月球".into(),
+        url: "https://cdn.example.com/moon-cn.mpd".into(),
+        kind: "video".into(),
+        extension: "mpd".into(),
+        size: None,
+        source: "pedia".into(),
+        subfolder: Some("月球/认识月球".into()),
+        sequence: Some(1),
+        quality: Some("4K".into()),
+        language: Some("中文".into()),
+    };
+    let output = Path::new("downloads");
+
+    assert_eq!(
+        resource_target_dir(output, &item, true),
+        output.join("中文/月球/认识月球")
+    );
+    assert_eq!(
+        resource_target_dir(output, &item, false),
+        output.join("月球/认识月球")
+    );
+}
+
+#[test]
+fn unlabeled_video_keeps_the_course_directory() {
+    let item = ResourceItem {
+        id: "moon-default".into(),
+        title: "认识月球".into(),
+        url: "https://cdn.example.com/moon.mp4".into(),
+        kind: "video".into(),
+        extension: "mp4".into(),
+        size: None,
+        source: "pedia".into(),
+        subfolder: Some("月球/认识月球".into()),
+        sequence: Some(1),
+        quality: None,
+        language: None,
+    };
+
+    assert_eq!(
+        resource_target_dir(Path::new("downloads"), &item, true),
+        Path::new("downloads/月球/认识月球")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
 #[ignore = "requires the live Banma CDN and ffmpeg"]
 async fn live_dash_key_decrypts_real_manifest() {
     let manifest = "https://maple-online.fbcontent.cn/public/release/trans/app-CONAN_ZDT_ENCYCLOPEDIA_1080_ENCRYPT_DASH/451696ba-0824-42a9-b503-da112ed020bd/451696ba-0824-42a9-b503-da112ed020bd.mpd";

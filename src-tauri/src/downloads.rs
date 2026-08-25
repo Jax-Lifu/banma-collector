@@ -12,6 +12,26 @@ async fn prepare_video_cancellable(
     }
 }
 
+async fn migrate_download_location(
+    output_root: &Path,
+    old_path: &Path,
+    new_path: &Path,
+) -> Result<(), String> {
+    if new_path.is_file() || !old_path.is_file() || old_path == new_path {
+        return Ok(());
+    }
+    if let Some(parent) = new_path.parent() {
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|error| format!("创建语言分类目录失败：{error}"))?;
+    }
+    fs::rename(old_path, new_path)
+        .await
+        .map_err(|error| format!("迁移已有下载到语言分类目录失败：{error}"))?;
+    move_playable_marker(output_root, old_path, new_path).await;
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn download_resources(
     app: tauri::AppHandle,
@@ -33,6 +53,7 @@ pub(crate) async fn download_resources(
     let client = client_from(&state, &request.product)?;
     let generation = state.download_generation.clone();
     let batch_generation = generation.load(Ordering::Acquire);
+    let separate_languages = request.separate_languages;
     let mut handles = Vec::new();
 
     let mut item_flags = HashMap::new();
@@ -95,32 +116,28 @@ pub(crate) async fn download_resources(
                     return Ok(());
                 }
 
-                let target_dir = if let Some(ref sub) = item.subfolder {
-                    let clean = safe_subfolder_path(sub);
-                    if clean.as_os_str().is_empty() { output.clone() } else { output.join(clean) }
-                } else {
-                    output.clone()
-                };
+                let target_dir = resource_target_dir(
+                    &output,
+                    &item,
+                    separate_languages,
+                );
                 fs::create_dir_all(&target_dir).await.map_err(|e| format!("创建专辑目录失败：{e}"))?;
                 let final_path = target_dir.join(safe_filename(&item));
+                let alternate_path = resource_target_dir(
+                    &output,
+                    &item,
+                    !separate_languages,
+                )
+                .join(safe_filename(&item));
+                migrate_download_location(&output, &alternate_path, &final_path).await?;
                 debug_log!("item target id={} path={}", item.id, final_path.display());
-                let verified_path = final_path.with_extension(format!(
-                    "{}.playable",
-                    final_path.extension().and_then(|value| value.to_str()).unwrap_or("media")
-                ));
 
                 // 升级旧版无序号文件名，避免用户为了获得正确排序再次下载同一资源。
                 if item.sequence.is_some() && !final_path.exists() {
                     let legacy_path = target_dir.join(legacy_filename(&item));
                     if legacy_path.is_file() {
                         fs::rename(&legacy_path, &final_path).await.map_err(|error| format!("升级剧集文件名失败：{error}"))?;
-                        let legacy_verified = legacy_path.with_extension(format!(
-                            "{}.playable",
-                            legacy_path.extension().and_then(|value| value.to_str()).unwrap_or("media")
-                        ));
-                        if legacy_verified.is_file() {
-                            let _ = fs::rename(legacy_verified, &verified_path).await;
-                        }
+                        move_playable_marker(&output, &legacy_path, &final_path).await;
                     }
                 }
 
@@ -132,13 +149,13 @@ pub(crate) async fn download_resources(
                     if let Ok(metadata) = fs::metadata(&final_path).await {
                         if metadata.len() > 0 {
                             if item.kind == "video" && final_path.extension().and_then(|value| value.to_str()).is_some_and(|value| value.eq_ignore_ascii_case("mp4")) {
-                                if !has_current_playable_marker(&verified_path).await {
-                                    let _ = fs::remove_file(&verified_path).await;
+                                if !has_current_playable_marker(&output, &final_path).await {
+                                    remove_playable_marker(&output, &final_path).await;
                                     if prepare_video_cancellable(&client, &final_path, &cancellation)
                                         .await
                                         .is_ok_and(|completed| completed)
                                     {
-                                        write_playable_marker(&verified_path).await?;
+                                        write_playable_marker(&output, &final_path).await?;
                                     } else if cancellation.is_cancelled() {
                                         emit("cancelled", 0, None, None);
                                         return Ok(());
@@ -168,11 +185,17 @@ pub(crate) async fn download_resources(
                 if is_stream_manifest {
                     let out_ext = if item.kind == "audio" { "mp3" } else { "mp4" };
                     let final_media_path = final_path.with_extension(out_ext);
-                    let media_verified_path = final_media_path.with_extension(format!("{out_ext}.playable"));
+                    let alternate_media_path = alternate_path.with_extension(out_ext);
+                    migrate_download_location(
+                        &output,
+                        &alternate_media_path,
+                        &final_media_path,
+                    )
+                    .await?;
                     if final_media_path.exists() {
                         if let Ok(metadata) = fs::metadata(&final_media_path).await {
                             // 旧版本曾把 MPD/M3U8 清单文本直接改名为 mp4；这类文件通常只有几 KB。
-                            if metadata.len() >= 32 * 1024 && has_current_playable_marker(&media_verified_path).await {
+                            if metadata.len() >= 32 * 1024 && has_current_playable_marker(&output, &final_media_path).await {
                                 let size = metadata.len();
                                 debug_log!("stream cache hit id={} bytes={}", item.id, size);
                                 emit("completed", size, Some(size), None);
@@ -352,17 +375,17 @@ pub(crate) async fn download_resources(
                         .await?;
                         if !prepared {
                             let _ = fs::remove_file(&final_media_path).await;
-                            let _ = fs::remove_file(&media_verified_path).await;
+                            remove_playable_marker(&output, &final_media_path).await;
                             emit("cancelled", 0, None, None);
                             return Ok(());
                         }
                         if cancellation.is_cancelled() {
                             let _ = fs::remove_file(&final_media_path).await;
-                            let _ = fs::remove_file(&media_verified_path).await;
+                            remove_playable_marker(&output, &final_media_path).await;
                             emit("cancelled", 0, None, None);
                             return Ok(());
                         }
-                        write_playable_marker(&media_verified_path).await?;
+                        write_playable_marker(&output, &final_media_path).await?;
                         debug_log!("video prepare complete id={}", item.id);
                     }
                     let size = fs::metadata(&final_media_path).await.ok().map(|value| value.len()).unwrap_or(0);
@@ -392,7 +415,7 @@ pub(crate) async fn download_resources(
                         .map_err(|error| format!("恢复视频源文件缓存失败：{error}"))?;
                     match prepare_video_cancellable(&client, &final_path, &cancellation).await {
                         Ok(true) => {
-                            write_playable_marker(&verified_path).await?;
+                            write_playable_marker(&output, &final_path).await?;
                             let size = fs::metadata(&final_path)
                                 .await
                                 .map(|value| value.len())
@@ -577,7 +600,7 @@ pub(crate) async fn download_resources(
                                 let _ = fs::create_dir_all(source_cache.parent().unwrap_or(&target_dir)).await;
                                 let _ = fs::remove_file(&source_cache).await;
                                 let _ = fs::rename(&final_path, &source_cache).await;
-                                let _ = fs::remove_file(&verified_path).await;
+                                remove_playable_marker(&output, &final_path).await;
                                 emit("cancelled", received, total_bytes, None);
                                 return Ok(());
                             }
@@ -585,13 +608,13 @@ pub(crate) async fn download_resources(
                                 let _ = fs::create_dir_all(source_cache.parent().unwrap_or(&target_dir)).await;
                                 let _ = fs::remove_file(&source_cache).await;
                                 let _ = fs::rename(&final_path, &source_cache).await;
-                                let _ = fs::remove_file(&verified_path).await;
+                                remove_playable_marker(&output, &final_path).await;
                                 return Err(format!(
                                     "{error}；已保留下载源文件，重试时不会重新下载"
                                 ));
                             }
                         }
-                        write_playable_marker(&verified_path).await?;
+                        write_playable_marker(&output, &final_path).await?;
                     }
                     emit("completed", received, total_bytes.or(Some(received)), None);
                     debug_log!("item complete id={} bytes={} path={}", item.id, received, final_path.display());

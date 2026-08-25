@@ -322,6 +322,7 @@ export function MediaRow({
 export function ResourcePreview({
   resource,
   outputDir,
+  separateLanguages,
   state,
   accent,
   onClose,
@@ -329,6 +330,7 @@ export function ResourcePreview({
 }: {
   resource: ResourceItem;
   outputDir: string;
+  separateLanguages: boolean;
   state?: ProgressState;
   accent: string;
   onClose: () => void;
@@ -339,7 +341,7 @@ export function ResourcePreview({
   useEffect(() => {
     let active = true;
     setChecking(true);
-    getResourcePreviewPath(resource, outputDir)
+    getResourcePreviewPath(resource, outputDir, separateLanguages)
       .then((path) => {
         if (active) setLocalPath(path ?? undefined);
       })
@@ -352,7 +354,7 @@ export function ResourcePreview({
     return () => {
       active = false;
     };
-  }, [resource, outputDir, state?.status]);
+  }, [resource, outputDir, separateLanguages, state?.status]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();

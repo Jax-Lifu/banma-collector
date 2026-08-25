@@ -151,6 +151,8 @@ pub struct DownloadRequest {
     output_dir: String,
     concurrency: usize,
     product: String,
+    #[serde(default)]
+    separate_languages: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,6 +160,8 @@ pub struct DownloadRequest {
 struct PreviewPathRequest {
     item: ResourceItem,
     output_dir: String,
+    #[serde(default)]
+    separate_languages: bool,
 }
 
 #[derive(Debug, Deserialize)]

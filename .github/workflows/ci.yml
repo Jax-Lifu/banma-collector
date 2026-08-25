@@ -64,6 +64,15 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
+      - name: Restore bundled runtime cache
+        uses: actions/cache@v4
+        with:
+          path: .runtime-cache
+          key: windows-runtime-${{ hashFiles('scripts/prepare-runtime.ps1') }}
+
+      - name: Prepare bundled runtime tools
+        run: pnpm runtime:prepare
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 

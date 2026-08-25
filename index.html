@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f3ee" />
+    <title>斑马资源库</title>
+    <style>
+      html,body,#root{width:100%;height:100%;margin:0}body{background:#f7f5f0;color:#1b1a18;font-family:Inter,"Microsoft YaHei",system-ui,sans-serif}
+      .boot-shell{box-sizing:border-box;display:flex;height:100%;min-height:680px;flex-direction:column;background:#f7f5f0}.boot-header{display:flex;height:64px;flex-shrink:0;align-items:center;border-bottom:1px solid rgba(0,0,0,.1);padding:0 28px}.boot-brand{display:flex;align-items:center;gap:12px;font-size:14px;font-weight:700}.boot-logo{display:grid;width:30px;height:30px;place-items:center;border-radius:9px;background:#171715;color:white}.boot-status{margin-left:auto;color:rgba(0,0,0,.4);font-size:12px}.boot-products{display:grid;min-height:0;flex:1;grid-template-columns:repeat(3,1fr)}.boot-product{box-sizing:border-box;display:flex;min-width:0;flex-direction:column;padding:36px;border-left:1px solid rgba(0,0,0,.08)}.boot-product:first-child{border-left:0}.boot-product:nth-child(1){background:#fff0e9}.boot-product:nth-child(2){background:#eaf3ff}.boot-product:nth-child(3){background:#f1edff}.boot-eyebrow{font-size:10px;font-weight:800;letter-spacing:.22em}.boot-product:nth-child(1) .boot-eyebrow{color:#f05a38}.boot-product:nth-child(2) .boot-eyebrow{color:#2879d0}.boot-product:nth-child(3) .boot-eyebrow{color:#7552c8}.boot-copy{margin:auto 0}.boot-icon{display:grid;width:56px;height:56px;place-items:center;border-radius:16px;background:#1b1a18;color:white;font-size:22px}.boot-copy h1{margin:28px 0 12px;font-size:42px;letter-spacing:-.055em}.boot-copy p{max-width:320px;color:rgba(0,0,0,.5);font-size:14px;line-height:1.8}.boot-action{border-top:1px solid rgba(0,0,0,.1);padding-top:24px;font-size:14px;font-weight:700}.boot-error{position:fixed;right:20px;bottom:20px;left:20px;z-index:20;box-sizing:border-box;border:1px solid #efb4a8;border-radius:12px;background:#fff7f5;padding:14px 18px;color:#713527;box-shadow:0 8px 30px rgba(80,30,20,.12);font-size:13px;line-height:1.6}.boot-error strong{display:block;margin-bottom:3px}
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <main class="boot-shell" aria-label="斑马资源库正在启动">
+        <header class="boot-header"><div class="boot-brand"><span class="boot-logo">Z</span><span>斑马资源库</span></div><span class="boot-status">正在启动主界面…</span></header>
+        <section class="boot-products">
+          <article class="boot-product"><div class="boot-eyebrow">EXPLORE</div><div class="boot-copy"><div class="boot-icon">书</div><h1>斑马百科</h1><p>浏览百科课程包，读取账号可访问的课程资源。</p></div><div class="boot-action">手机号登录</div></article>
+          <article class="boot-product"><div class="boot-eyebrow">SPEAK</div><div class="boot-copy"><div class="boot-icon">说</div><h1>斑马口语</h1><p>读取口语学习任务，归档账号内的媒体内容。</p></div><div class="boot-action">手机号登录</div></article>
+          <article class="boot-product"><div class="boot-eyebrow">EXPAND</div><div class="boot-copy"><div class="boot-icon">学</div><h1>斑马AI学</h1><p>读取拓展与 VIP 课程，下载账号可访问的视频和音频。</p></div><div class="boot-action">手机号登录</div></article>
+        </section>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const showBootError = (value) => {
+          if (document.documentElement.dataset.appReady === "true") return;
+          const root = document.getElementById("root");
+          if (!root) return;
+          const message = value instanceof Error ? `${value.name}: ${value.message}` : String(value || "未知启动错误");
+          let panel = root.querySelector("[data-boot-error]");
+          if (!panel) {
+            panel = document.createElement("div");
+            panel.className = "boot-error";
+            panel.setAttribute("data-boot-error", "true");
+            panel.innerHTML = "<strong>主界面加载较慢，正在继续尝试</strong><span></span>";
+            root.appendChild(panel);
+          }
+          const detail = panel.querySelector("span");
+          if (detail) detail.textContent = message;
+        };
+        window.addEventListener("error", (event) => showBootError(event.error || event.message));
+        window.addEventListener("unhandledrejection", (event) => showBootError(event.reason));
+        window.setTimeout(() => {
+          if (document.documentElement.dataset.appReady !== "true") showBootError("交互模块尚未就绪；主界面已保留，请稍候或查看终端中的后续错误。");
+        }, 15000);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

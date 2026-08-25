@@ -1,0 +1,299 @@
+@import "tailwindcss";
+
+:root {
+  font-family:
+    Inter, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #191918;
+  background: #f4f2ed;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: #f4f2ed;
+}
+#root {
+  width: var(--app-window-width, 100%);
+  height: var(--app-window-height, 100%);
+  max-width: 100vw;
+  max-height: 100vh;
+  min-width: 0;
+  min-height: 0;
+  background: #f4f2ed;
+}
+body {
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+#root:empty::before {
+  content: "斑马资源库正在启动…";
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: rgba(25, 25, 24, 0.45);
+  font-size: 13px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag,
+.drag-region button {
+  -webkit-app-region: no-drag;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(25, 25, 24, 0.14);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes detail-in {
+  from {
+    opacity: 0;
+    transform: translateX(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes progress-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+.animate-row-in {
+  animation: row-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-detail-in {
+  animation: detail-in 0.22s ease-out both;
+}
+.progress-indeterminate {
+  width: 34%;
+  animation: progress-sweep 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.workspace-shell {
+  display: grid;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow: hidden;
+  grid-template-columns: clamp(72px, 15.9%, 216px) minmax(0, 1fr) clamp(
+      240px,
+      24%,
+      328px
+    );
+  grid-template-rows: minmax(0, 1fr);
+}
+.workspace-nav {
+  grid-column: 1;
+  min-width: 0;
+}
+.workspace-main {
+  grid-column: 2;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.workspace-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+.workspace-queue {
+  grid-column: 3;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.album-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
+}
+.album-progress-row,
+.media-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 58px;
+}
+.preview-stage audio {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+@media (max-width: 1180px) {
+  .workspace-shell {
+    grid-template-columns: 72px minmax(0, 1fr) 292px;
+  }
+  .workspace-nav {
+    padding-inline: 9px;
+  }
+  .workspace-nav .nav-copy,
+  .workspace-nav .nav-label,
+  .workspace-nav .nav-action span {
+    display: none;
+  }
+  .workspace-nav .nav-action,
+  .workspace-nav .product-nav-item {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .workspace-nav .nav-action svg,
+  .workspace-nav .product-nav-icon {
+    margin-right: 0;
+  }
+  .workspace-nav .account-block {
+    display: grid;
+    place-items: center;
+    padding: 8px;
+  }
+  .workspace-nav .account-block button {
+    margin-top: 0;
+  }
+  .workspace-nav .account-block svg {
+    margin-right: 0;
+  }
+  .workspace-content,
+  .workspace-header {
+    padding-inline: 22px;
+  }
+}
+
+@media (max-width: 920px) {
+  .workspace-shell {
+    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 218px;
+  }
+  .workspace-nav {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .workspace-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .workspace-queue {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    grid-template-rows: auto minmax(0, 1fr);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-left: 0;
+  }
+  .workspace-queue > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 12px 18px 8px;
+    border-bottom: 0;
+  }
+  .workspace-queue > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 4px 18px 14px;
+  }
+  .workspace-queue > :last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-top: 0;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 16px;
+  }
+  .workspace-content,
+  .workspace-header {
+    padding-inline: 18px;
+  }
+  .workspace-content {
+    padding-block: 18px;
+  }
+  .album-progress-row {
+    grid-template-columns: minmax(0, 1fr) 100px 42px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-shell {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 210px;
+  }
+  .workspace-nav {
+    padding-inline: 6px;
+  }
+  .workspace-header h1 {
+    font-size: 15px;
+  }
+  .workspace-content,
+  .workspace-header {
+    padding-inline: 14px;
+  }
+  .workspace-queue {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  .media-row {
+    grid-template-columns: 26px 32px minmax(0, 1fr) 62px 28px;
+    padding-inline: 10px;
+  }
+  .album-progress-row {
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+  .album-progress-row > :nth-child(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .product-gate-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .product-gate-grid > button {
+    min-height: 320px;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

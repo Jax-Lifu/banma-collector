@@ -56,11 +56,11 @@ import {
   revealPath,
 } from "../lib/tauri";
 import {
+  filterResourcesForSelection,
   groupLogicalResources,
   isLoginError,
   readError,
   resourceDownloadPriority,
-  resourceMatchesSelection,
   videoVariantLabel,
 } from "../lib/resources";
 import { cn, formatBytes } from "../lib/utils";
@@ -123,15 +123,11 @@ export function ProductWorkspace({
       setSelectedAlbums([]);
       store.setResources(catalog.data.videos);
       store.selectAll(
-        catalog.data.videos
-          .filter((item) =>
-            resourceMatchesSelection(
-              item,
-              selectedQualities,
-              selectedLanguages,
-            ),
-          )
-          .map((item) => item.id),
+        filterResourcesForSelection(
+          catalog.data.videos,
+          selectedQualities,
+          selectedLanguages,
+        ).map((item) => item.id),
       );
       setNotice(catalog.data.warning ?? undefined);
     }
@@ -164,15 +160,11 @@ export function ProductWorkspace({
       setSelectedAlbums([]);
       store.setResources(next.videos);
       store.selectAll(
-        next.videos
-          .filter((item) =>
-            resourceMatchesSelection(
-              item,
-              selectedQualities,
-              selectedLanguages,
-            ),
-          )
-          .map((item) => item.id),
+        filterResourcesForSelection(
+          next.videos,
+          selectedQualities,
+          selectedLanguages,
+        ).map((item) => item.id),
       );
       setKindFilter("all");
     },
@@ -297,8 +289,10 @@ export function ProductWorkspace({
       if (!resources.length)
         throw new Error("所选专辑未识别到可下载的音频或视频资源");
       const targetResources = resources;
-      const selectedResources = targetResources.filter((item) =>
-        resourceMatchesSelection(item, selectedQualities, selectedLanguages),
+      const selectedResources = filterResourcesForSelection(
+        targetResources,
+        selectedQualities,
+        selectedLanguages,
       );
       setContent((prev) =>
         prev
@@ -323,18 +317,14 @@ export function ProductWorkspace({
       const albumErrors: string[] = [];
       for (let index = 0; index < albums.length; index += 1) {
         if (batchCancelRef.current) throw new Error("下载任务已停止");
-        const albumResources = [...(resourcesByAlbum[index] ?? [])]
-          .filter((item) =>
-            resourceMatchesSelection(
-              item,
-              selectedQualities,
-              selectedLanguages,
-            ),
-          )
-          .sort(
-            (left, right) =>
-              resourceDownloadPriority(left) - resourceDownloadPriority(right),
-          );
+        const albumResources = filterResourcesForSelection(
+          resourcesByAlbum[index] ?? [],
+          selectedQualities,
+          selectedLanguages,
+        ).sort(
+          (left, right) =>
+            resourceDownloadPriority(left) - resourceDownloadPriority(right),
+        );
         if (!albumResources.length) continue;
 
         const videoCount = albumResources.filter(
@@ -420,11 +410,11 @@ export function ProductWorkspace({
     setContent(catalog.data);
     store.setResources(catalog.data?.videos ?? []);
     store.selectAll(
-      (catalog.data?.videos ?? [])
-        .filter((item) =>
-          resourceMatchesSelection(item, selectedQualities, selectedLanguages),
-        )
-        .map((item) => item.id),
+      filterResourcesForSelection(
+        catalog.data?.videos ?? [],
+        selectedQualities,
+        selectedLanguages,
+      ).map((item) => item.id),
     );
     setKindFilter("all");
   }
@@ -437,11 +427,11 @@ export function ProductWorkspace({
     setSelectedAlbums([]);
     store.setResources(level.content.videos);
     store.selectAll(
-      level.content.videos
-        .filter((item) =>
-          resourceMatchesSelection(item, selectedQualities, selectedLanguages),
-        )
-        .map((item) => item.id),
+      filterResourcesForSelection(
+        level.content.videos,
+        selectedQualities,
+        selectedLanguages,
+      ).map((item) => item.id),
     );
     setKindFilter("all");
   }
@@ -523,11 +513,9 @@ export function ProductWorkspace({
             : [...selectedQualities, quality];
     setSelectedQualities(next);
     store.selectAll(
-      store.resources
-        .filter((item) =>
-          resourceMatchesSelection(item, next, selectedLanguages),
-        )
-        .map((item) => item.id),
+      filterResourcesForSelection(store.resources, next, selectedLanguages).map(
+        (item) => item.id,
+      ),
     );
   }
 
@@ -544,11 +532,9 @@ export function ProductWorkspace({
             : [...selectedLanguages, language];
     setSelectedLanguages(next);
     store.selectAll(
-      store.resources
-        .filter((item) =>
-          resourceMatchesSelection(item, selectedQualities, next),
-        )
-        .map((item) => item.id),
+      filterResourcesForSelection(store.resources, selectedQualities, next).map(
+        (item) => item.id,
+      ),
     );
   }
 
@@ -855,15 +841,11 @@ export function ProductWorkspace({
                       className="h-7 px-2 text-xs text-black/50 hover:text-black"
                       onClick={() =>
                         store.selectAll(
-                          filteredResources
-                            .filter((item) =>
-                              resourceMatchesSelection(
-                                item,
-                                selectedQualities,
-                                selectedLanguages,
-                              ),
-                            )
-                            .map((v) => v.id),
+                          filterResourcesForSelection(
+                            filteredResources,
+                            selectedQualities,
+                            selectedLanguages,
+                          ).map((item) => item.id),
                         )
                       }
                     >
@@ -889,12 +871,10 @@ export function ProductWorkspace({
                 {displayedResourceGroups.length ? (
                   displayedResourceGroups.map(
                     ({ resource: video, variants }) => {
-                      const selectableVariants = variants.filter((item) =>
-                        resourceMatchesSelection(
-                          item,
-                          selectedQualities,
-                          selectedLanguages,
-                        ),
+                      const selectableVariants = filterResourcesForSelection(
+                        variants,
+                        selectedQualities,
+                        selectedLanguages,
                       );
                       const allSelected =
                         selectableVariants.length > 0 &&

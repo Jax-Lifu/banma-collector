@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ResourceItem } from "./schema";
 import {
+  filterResourcesForSelection,
   groupLogicalResources,
   resourceDisplayExtension,
   resourceMatchesSelection,
@@ -41,5 +42,37 @@ describe("资源展示与筛选", () => {
     expect(resourceMatchesSelection(english, ["720P"], ["英文"])).toBe(true);
     expect(resourceMatchesSelection(english, ["1080P"], ["英文"])).toBe(false);
     expect(resourceDisplayExtension(english)).toBe("MP4 · 英文 · 720P");
+  });
+
+  it("同组已有明确变体时不下载缺少标签的兜底视频", () => {
+    const chinese4k = video("cn-4k", "4K", "中文");
+    const english4k = video("en-4k", "4K", "英文");
+    const unlabeledLanguage4k = {
+      ...video("fallback-4k", "4K"),
+      language: null,
+    };
+    const unlabeledQualityEnglish = {
+      ...video("fallback-en", "", "英文"),
+      quality: null,
+    };
+
+    expect(
+      filterResourcesForSelection(
+        [unlabeledLanguage4k, english4k, unlabeledQualityEnglish, chinese4k],
+        ["4K"],
+        ["中文", "英文"],
+      ).map((item) => item.id),
+    ).toEqual(["en-4k", "cn-4k"]);
+  });
+
+  it("整组没有清晰度和语言标签时仍保留唯一默认视频", () => {
+    const fallback = {
+      ...video("fallback", ""),
+      quality: null,
+      language: null,
+    };
+    expect(filterResourcesForSelection([fallback], ["4K"], ["中文"])).toEqual([
+      fallback,
+    ]);
   });
 });

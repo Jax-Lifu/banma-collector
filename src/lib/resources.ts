@@ -49,19 +49,34 @@ export function resourceMatchesSelection(
   selectedQualities: string[],
   selectedLanguages: string[],
 ) {
+  return resourceVariantMatchesSelection(
+    resource,
+    selectedQualities,
+    selectedLanguages,
+    false,
+    false,
+  );
+}
+
+function resourceVariantMatchesSelection(
+  resource: ResourceItem,
+  selectedQualities: string[],
+  selectedLanguages: string[],
+  groupHasQuality: boolean,
+  groupHasLanguage: boolean,
+) {
   const matchesQuality =
     resource.kind !== "video" ||
-    !resource.quality ||
     selectedQualities.includes("全部") ||
-    selectedQualities.includes(resource.quality);
+    (resource.quality
+      ? selectedQualities.includes(resource.quality)
+      : !groupHasQuality);
   if (!matchesQuality) return false;
-  if (
-    resource.kind !== "video" ||
-    !resource.language ||
-    selectedLanguages.includes("全部")
-  )
+  if (resource.kind !== "video" || selectedLanguages.includes("全部"))
     return true;
-  return selectedLanguages.includes(resource.language);
+  return resource.language
+    ? selectedLanguages.includes(resource.language)
+    : !groupHasLanguage;
 }
 
 function logicalResourceKey(resource: ResourceItem) {
@@ -130,11 +145,46 @@ export function groupLogicalResources(
   }
   return [...groups.values()].map((variants) => ({
     variants,
-    resource:
-      variants.find((item) =>
-        resourceMatchesSelection(item, selectedQualities, selectedLanguages),
-      ) ?? variants[0],
+    resource: (() => {
+      const groupHasQuality = variants.some((item) => Boolean(item.quality));
+      const groupHasLanguage = variants.some((item) => Boolean(item.language));
+      return (
+        variants.find((item) =>
+          resourceVariantMatchesSelection(
+            item,
+            selectedQualities,
+            selectedLanguages,
+            groupHasQuality,
+            groupHasLanguage,
+          ),
+        ) ?? variants[0]
+      );
+    })(),
   }));
+}
+
+export function filterResourcesForSelection(
+  resources: ResourceItem[],
+  selectedQualities: string[],
+  selectedLanguages: string[],
+) {
+  return groupLogicalResources(
+    resources,
+    selectedQualities,
+    selectedLanguages,
+  ).flatMap(({ variants }) => {
+    const groupHasQuality = variants.some((item) => Boolean(item.quality));
+    const groupHasLanguage = variants.some((item) => Boolean(item.language));
+    return variants.filter((item) =>
+      resourceVariantMatchesSelection(
+        item,
+        selectedQualities,
+        selectedLanguages,
+        groupHasQuality,
+        groupHasLanguage,
+      ),
+    );
+  });
 }
 
 export function progressStatusText(state?: ProgressState) {

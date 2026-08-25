@@ -5,6 +5,11 @@
       "binaries/ffmpeg",
       "binaries/mp4dump",
       "binaries/mp4decrypt"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   }
 }

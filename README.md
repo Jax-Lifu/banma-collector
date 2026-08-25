@@ -2,7 +2,7 @@
 
 斑马资源库是一款 Windows 桌面工具，用于整理当前账号有权访问的斑马课程资源。它可以浏览课程和专辑，按课程目录归类音视频，并在下载前选择清晰度与语言。
 
-当前公开版本为 `0.1.0`，Windows 用户可从 GitHub Releases 下载 NSIS 安装程序。
+当前公开版本为 `0.1.0`，Windows 用户可从 GitHub Releases 下载 NSIS 安装程序、MSI 安装包或便携式 ZIP。
 
 版本变化请查看 [更新日志](CHANGELOG.md)。
 
@@ -127,6 +127,8 @@ pnpm test:e2e
 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 cargo test --locked --manifest-path src-tauri/Cargo.toml --all-targets
 ```
+
+执行 `pnpm clean` 可以清理前端产物、测试报告和 Rust `target` 目录；运行时工具缓存会保留，避免下次打包重复下载。执行 `pnpm bundle:windows` 会一次生成 NSIS、MSI 和便携式 ZIP 三种 Windows 产物。
 
 PowerShell 格式化依赖 `PSScriptAnalyzer`，首次使用可执行 `Install-Module PSScriptAnalyzer -Scope CurrentUser`。GitHub Actions 会在每次推送和拉取请求时执行构建、全仓格式检查、前端单元测试、浏览器端到端测试、Rust 静态检查和单元测试。该流程不会生成或发布安装包。
 

@@ -73,6 +73,8 @@
 - 会话 Cookie 改用 Windows DPAPI 加密保存，并自动迁移旧版明文会话。
 - 收紧页面 CSP 和本地资源访问范围，仅在预览时授权下载目录内的具体文件。
 - Windows 安装包构建会自动携带 FFmpeg、mp4dump 和 mp4decrypt，用户无需安装外部依赖。
+- 同时提供 NSIS、MSI 和便携式 ZIP 三种 Windows 分发格式。
+- 增加 `pnpm clean`，统一清理可再生成的构建与测试产物。
 - 增加课程资源过滤、视频变体、语言识别、文件命名、任务停止、前端组件和完整下载流程测试。
 - 增加统一格式化命令，覆盖前端、配置、文档、Rust 与 PowerShell 脚本。
 - 增加 GitHub Actions，自动执行全仓格式检查、前端构建与测试、Rust 静态检查和单元测试。

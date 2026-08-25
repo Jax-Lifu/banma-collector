@@ -3,7 +3,7 @@
   "productName": "斑马资源库",
   "version": "0.1.0",
   "identifier": "cn.banma.collector",
-  "build": { "beforeDevCommand": "pnpm dev:tauri", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "pnpm build", "frontendDist": "../dist" },
+  "build": { "beforeDevCommand": "pnpm dev:tauri", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "pnpm runtime:prepare && pnpm build", "frontendDist": "../dist" },
   "app": {
     "windows": [{ "title": "斑马资源库", "width": 1360, "height": 860, "minWidth": 720, "minHeight": 560, "center": true, "decorations": true }],
     "security": {
@@ -14,6 +14,16 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"]
+    "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"],
+    "externalBin": [
+      "binaries/ffmpeg",
+      "binaries/mp4dump",
+      "binaries/mp4decrypt"
+    ],
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   }
 }

@@ -10,7 +10,7 @@
     "runtime:prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-runtime.ps1",
     "clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean.ps1",
     "bundle:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
-    "bundle:windows": "pnpm runtime:prepare && tauri build --bundles msi,nsis --config src-tauri/tauri.release.conf.json && pnpm bundle:portable",
+    "bundle:windows": "tauri build --bundles msi,nsis && pnpm bundle:portable",
     "format:web": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" \"*.{json,ts,md}\" \".github/**/*.yml\"",
     "format:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml",
     "format:scripts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/format-powershell.ps1",

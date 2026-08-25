@@ -109,7 +109,7 @@
 
 参与测试或开发时，需要安装 Node.js 22、pnpm 10 和稳定版 Rust 工具链。
 
-开发模式允许从系统 `PATH` 使用 FFmpeg 与 Bento4。生成 Windows 安装包时请统一执行 `pnpm bundle:windows`，该命令会自动准备并打包运行时工具，不能直接绕过该命令发布。
+开发模式允许从系统 `PATH` 使用 FFmpeg 与 Bento4。执行 `cargo tauri build` 或 `pnpm bundle:windows` 时都会自动准备并打包运行时工具；后者还会额外生成便携式 ZIP。
 
 ```powershell
 pnpm install --frozen-lockfile

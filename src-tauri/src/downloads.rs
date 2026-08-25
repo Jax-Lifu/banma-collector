@@ -220,6 +220,7 @@ pub(crate) async fn download_resources(
                         );
 
                         let mut cmd = Command::new(crate::runtime_tools::command("ffmpeg"));
+                        crate::runtime_tools::hide_window(&mut cmd);
                         cmd.args([
                             "-nostdin", "-y", "-hide_banner", "-loglevel", "error",
                             "-rw_timeout", "15000000",

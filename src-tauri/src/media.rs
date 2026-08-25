@@ -205,6 +205,7 @@ fn bento4_tool(name: &str) -> PathBuf {
 
 async fn inspect_cenc_kids(path: &Path) -> Result<Vec<String>, String> {
     let mut command = Command::new(bento4_tool("mp4dump"));
+    crate::runtime_tools::hide_window(&mut command);
     command
         .args(["--verbosity", "1"])
         .arg(path)
@@ -306,6 +307,7 @@ async fn decrypt_mp4_with_keys(
 ) -> Result<(), String> {
     let _ = fs::remove_file(output_path).await;
     let mut command = Command::new(bento4_tool("mp4decrypt"));
+    crate::runtime_tools::hide_window(&mut command);
     command.kill_on_drop(true);
     for (kid, key) in keys {
         command.args(["--key", &format!("{kid}:{key}")]);
@@ -348,6 +350,7 @@ async fn decrypt_mp4_with_ffmpeg(
 ) -> Result<(), String> {
     let _ = fs::remove_file(output_path).await;
     let mut command = Command::new(crate::runtime_tools::command("ffmpeg"));
+    crate::runtime_tools::hide_window(&mut command);
     command
         .args([
             "-nostdin",
@@ -508,6 +511,7 @@ pub(crate) async fn decrypt_mp4_if_needed(
 pub(crate) async fn verify_playable_video(path: &Path) -> Result<(), String> {
     debug_log!("decode verify start path={}", path.display());
     let mut command = Command::new(crate::runtime_tools::command("ffmpeg"));
+    crate::runtime_tools::hide_window(&mut command);
     command
         .args(["-nostdin", "-v", "error", "-xerror", "-i"])
         .arg(path)
@@ -539,6 +543,7 @@ async fn normalize_mp4(path: &Path) -> Result<(), String> {
     let output_path = path.with_extension("normalizing.mp4");
     let _ = fs::remove_file(&output_path).await;
     let mut command = Command::new(crate::runtime_tools::command("ffmpeg"));
+    crate::runtime_tools::hide_window(&mut command);
     command
         .args(["-nostdin", "-y", "-v", "error", "-i"])
         .arg(path)

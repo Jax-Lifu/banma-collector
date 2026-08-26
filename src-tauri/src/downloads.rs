@@ -54,6 +54,7 @@ pub(crate) async fn download_resources(
     let generation = state.download_generation.clone();
     let batch_generation = generation.load(Ordering::Acquire);
     let separate_languages = request.separate_languages;
+    let product = request.product.clone();
     let mut handles = Vec::new();
 
     let mut item_flags = HashMap::new();
@@ -68,6 +69,7 @@ pub(crate) async fn download_resources(
     }
 
     for item in request.items {
+        let product = product.clone();
         let semaphore = semaphore.clone();
         let client = client.clone();
         let app = app.clone();
@@ -84,6 +86,7 @@ pub(crate) async fn download_resources(
         handles.push(tokio::spawn(async move {
             let emit = |status: &str, received, total, error| {
                 let _ = app.emit("download-progress", DownloadProgress {
+                    product: product.clone(),
                     id: item.id.clone(),
                     status: status.into(),
                     received,

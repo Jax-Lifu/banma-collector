@@ -1,13 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, ChevronRight, GraduationCap, Sparkles } from "lucide-react";
 import { LoginDialog } from "../components/LoginDialog";
 import { ProductWorkspace } from "./ProductWorkspace";
-import type { LoginSession, ZebraProduct } from "../lib/schema";
+import type { LoginSession, ProgressState, ZebraProduct } from "../lib/schema";
 import { getLoginSession } from "../lib/tauri";
 import { cn } from "../lib/utils";
+import { useCollectorStore } from "../store/collector";
 
 type ProductDefinition = {
   id: ZebraProduct;
@@ -117,6 +119,51 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    type ProductProgress = ProgressState & {
+      id: string;
+      product: ZebraProduct;
+    };
+    const pending = new Map<string, ProductProgress>();
+    let frame: number | undefined;
+    let stop: (() => void) | undefined;
+
+    const flush = () => {
+      frame = undefined;
+      const updates = Array.from(pending.values(), (payload) => ({
+        product: payload.product,
+        id: payload.id,
+        value: payload,
+      }));
+      pending.clear();
+      useCollectorStore.getState().updateProgressBatch(updates);
+    };
+    const scheduleFlush = () => {
+      if (frame === undefined && pending.size > 0) {
+        frame = window.requestAnimationFrame(flush);
+      }
+    };
+    const onVisibilityChange = () => {
+      if (!document.hidden) scheduleFlush();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    listen<ProductProgress>("download-progress", ({ payload }) => {
+      pending.set(`${payload.product}:${payload.id}`, payload);
+      scheduleFlush();
+    })
+      .then((unlisten) => {
+        stop = unlisten;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      stop?.();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
   const sessionQuery = useQuery({
     queryKey: ["product-sessions"],
     queryFn: async () =>
@@ -150,6 +197,7 @@ export function App() {
     <div className="h-full overflow-hidden bg-[#f7f5f0] text-[#1b1a18]">
       {routeProduct ? (
         <ProductWorkspace
+          key={routeProduct}
           product={routeProduct}
           products={products}
           definition={products.find((item) => item.id === routeProduct)!}

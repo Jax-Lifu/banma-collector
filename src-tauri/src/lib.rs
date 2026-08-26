@@ -175,6 +175,7 @@ pub struct CancelRequest {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DownloadProgress {
+    product: String,
     id: String,
     status: String,
     received: u64,

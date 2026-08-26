@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { listen } from "@tauri-apps/api/event";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -90,7 +89,7 @@ export function ProductWorkspace({
   onSession: (session: LoginSession) => void;
 }) {
   const navigate = useNavigate();
-  const store = useCollector();
+  const store = useCollector(product);
   const [content, setContent] = useState<ProductContent>();
   const [trail, setTrail] = useState<
     Array<{ entry: ContentEntry; content: ProductContent }>
@@ -140,18 +139,6 @@ export function ProductWorkspace({
       setNotice(readError(catalog.error));
     }
   }, [catalog.error]);
-
-  useEffect(() => {
-    let stop: (() => void) | undefined;
-    listen<ProgressState & { id: string }>("download-progress", ({ payload }) =>
-      store.updateProgress(payload.id, payload),
-    )
-      .then((value) => {
-        stop = value;
-      })
-      .catch(() => undefined);
-    return () => stop?.();
-  }, []);
 
   const detail = useMutation({
     mutationFn: (entry: ContentEntry) => loadContentDetail(product, entry),
@@ -382,21 +369,29 @@ export function ProductWorkspace({
     onError: (error) => setNotice(readError(error).replace(/^CANCELLED:/, "")),
   });
 
+  const hasActiveDownloads = store.resources.some((item) => {
+    const status = store.progress[item.id]?.status;
+    return status === "queued" || status === "downloading";
+  });
   const isDownloading =
     download.isPending ||
     batchDownloadAlbums.isPending ||
     singleDownload.isPending ||
-    retryAllFailed.isPending;
+    retryAllFailed.isPending ||
+    hasActiveDownloads;
   const isParsingOnly =
     batchDownloadAlbums.isPending &&
     batchDownloadAlbums.variables?.downloadAfterParse === false;
   useEffect(() => {
     if (!isDownloading) setCancelling(false);
   }, [isDownloading]);
-  const completed = Object.values(store.progress).filter(
+  const visibleProgress = store.resources
+    .map((item) => store.progress[item.id])
+    .filter((item): item is ProgressState => Boolean(item));
+  const completed = visibleProgress.filter(
     (item) => item.status === "completed",
   ).length;
-  const activeReceived = Object.values(store.progress)
+  const activeReceived = visibleProgress
     .filter((item) => item.status === "downloading")
     .reduce((total, item) => total + item.received, 0);
   const failedItems = useMemo(() => {
@@ -420,7 +415,7 @@ export function ProductWorkspace({
     [store.resources, store.selected, selectedQualities, selectedLanguages],
   );
 
-  const progressTotal = Object.keys(store.progress).length;
+  const progressTotal = visibleProgress.length;
   const progress = progressTotal ? (completed / progressTotal) * 100 : 0;
   const loading = catalog.isLoading || detail.isPending;
 
